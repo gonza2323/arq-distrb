@@ -2,16 +2,17 @@
 #include <cmath>
 #include <thread>
 #include <sys/time.h>
+#include <algorithm>
 #include <vector>
 
 const int cantDeHilos = 10;
 std::thread hilos[cantDeHilos];
-std::vector<long long int> vectoresDePrimos[cantDeHilos];
+std::vector<long int> vectoresDePrimos[cantDeHilos];
 
-void buscarPrimos(std::vector<long long int>& primos, int i0, int i1, int i) {
-    for (long long int i = i0; i < i1; i++) {
+void buscarPrimos(std::vector<long int>& primos, int i0, int i1, int threadIndex) {
+    for (long int i = i0; i < i1; i += 2) {
         bool es_primo = true;
-        for (long long int primo : primos) {
+        for (long int primo : primos) {
             if (primo > ceil(sqrtl(i)))
                 break;
 
@@ -22,22 +23,27 @@ void buscarPrimos(std::vector<long long int>& primos, int i0, int i1, int i) {
         }
 
         if (es_primo)
-            primos.push_back(i);
+            vectoresDePrimos[threadIndex].push_back(i);
     }
 }
 
 int main() {
-    long long int N = 10000000;
-    std::vector<long long int> primos = {2};
-    std::vector<long long int> result = {};
+    long int N = 10000000;
+    std::vector<long int> primos = {2};
 
     timeval time1, time2;
     gettimeofday(&time1, NULL);
+
+    for (int i = 0; i < cantDeHilos; i++)
+    {
+        vectoresDePrimos[i] = std::vector<long int>();
+    }
     
-    for (long long int i = 3; i < ceil(sqrtl(N)); i++)
+    // Buscamos los primos entre 2 y raíz de N
+    for (long int i = 3; i < ceil(sqrtl(N)); i += 2)
     {
         bool es_primo = true;
-        for (long long int primo : primos) {
+        for (long int primo : primos) {
             if (primo > ceil(sqrtl(i)))
                 break;
 
@@ -51,16 +57,22 @@ int main() {
             primos.push_back(i);
     }
 
-    for (size_t i = ceil(sqrtl(N)); i < N; i++)
+    long int raiz = (long int)(ceil(sqrtl(N)));
+    long int tamanoIntervalo = (N - raiz) / cantDeHilos;
+    long int ultimoIntervalo = (N - raiz) % cantDeHilos;
+    for (int i = 0; i < cantDeHilos - 2; i++)
     {
-        /* code */
+        long int inicioIntervalo = raiz + i * tamanoIntervalo;
+        long int finIntervalo = raiz + (1 + 1) * tamanoIntervalo;
+        hilos[i] = std::thread(buscarPrimos, &primos, inicioIntervalo, finIntervalo, i);
     }
+    hilos[cantDeHilos-1] = std::thread(buscarPrimos, &primos, N - ultimoIntervalo, N, cantDeHilos-1);
 
     for (int i = 0; i < cantDeHilos; i++) {
         if (hilos[i].joinable() == true) {
             hilos[i].join();
             
-            primos.insert(vec1.end(), vec2.begin(), vec2.end());
+            primos.insert(primos.end(), vectoresDePrimos[i].begin(), vectoresDePrimos[i].end());
         }
     }
     
